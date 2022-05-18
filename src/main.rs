@@ -4,10 +4,12 @@ use clap::Parser;
 
 mod address_book;
 mod manifest;
+mod messages;
 
 use {
 	address_book::AddressBook,
-	manifest::Manifest
+	manifest::Manifest,
+	messages::Messages,
 };
 
 #[derive(Parser)]
