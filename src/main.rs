@@ -2,6 +2,14 @@ use std::path::{PathBuf, Path};
 use rusqlite::params;
 use clap::Parser;
 
+mod address_book;
+mod manifest;
+
+use {
+	address_book::AddressBook,
+	manifest::Manifest
+};
+
 #[derive(Parser)]
 struct Args {
 	#[clap(parse(from_os_str))]
