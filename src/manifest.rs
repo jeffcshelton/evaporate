@@ -20,7 +20,7 @@ impl Manifest {
 		let mut sql = self.connection.prepare("SELECT fileID FROM Files WHERE relativePath=?1")?;
 		let mut rows = sql.query(params![device_relative_path])?;
 
-		let file_hash: String = rows.next()?.unwrap().get(0)?; // TODO: Internal, but remove .unwrap()
+		let file_hash: String = rows.next()?.unwrap().get(0)?; // TODO: Remove .unwrap()
 		let full_path = self.local_backup_path
 			.join(&file_hash[..2])
 			.join(file_hash);
