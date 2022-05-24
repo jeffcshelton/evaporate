@@ -1,3 +1,4 @@
+use crate::{address_book::AddressBook, messages::Messages};
 use rusqlite::{Connection as DbConnection, params, Result};
 use std::path::{Path, PathBuf};
 
@@ -7,6 +8,22 @@ pub struct Manifest {
 }
 
 impl Manifest {
+	pub fn address_book(&self) -> Result<AddressBook> {
+		let address_book_path = self.get_path("Library/AddressBook/AddressBook.sqlitedb")?;
+
+		Ok(AddressBook {
+			connection: DbConnection::open(address_book_path)?
+		})
+	}
+
+	pub fn messages(&self) -> Result<Messages> {
+		let messages_path = self.get_path("Library/SMS/sms.db")?;
+
+		Ok(Messages {
+			connection: DbConnection::open(messages_path)?
+		})
+	}
+
 	pub fn open(backup_path: &Path) -> Result<Self> {
 		let manifest_path = backup_path.join("Manifest.db");
 

@@ -1,19 +1,10 @@
 use rusqlite::{Connection as DbConnection, params, Result};
-use crate::Manifest;
 
 pub struct AddressBook {
-	connection: DbConnection
+	pub(crate) connection: DbConnection
 }
 
 impl AddressBook {
-	fn open(manifest: &Manifest) -> Result<Self> {
-		let address_book_path = manifest.get_path("Library/AddressBook/AddressBook.sqlitedb")?;
-
-		Ok(Self {
-			connection: DbConnection::open(address_book_path)?
-		})
-	}
-
 	pub fn get_phone_number(&self, name: &str) -> Result<String> {
 		let name = name.split(' ').collect::<Vec<&str>>();
 		let first_name = name.first();
