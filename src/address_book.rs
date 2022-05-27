@@ -25,8 +25,6 @@ impl AddressBook {
 			phone_number = "+1".to_owned() + &phone_number;
 		}
 
-		println!("{}", &phone_number);
-
 		Ok(phone_number)
 	}
 }
