@@ -1,15 +1,18 @@
-use std::path::{PathBuf, Path};
-use rusqlite::params;
-use clap::Parser;
+use std::io::Write;
 
 mod address_book;
 mod manifest;
 mod messages;
 
 use {
-	address_book::AddressBook,
+	clap::Parser,
 	manifest::Manifest,
-	messages::Messages,
+	std::{
+		path::PathBuf,
+		fmt,
+		fs::File,
+		io
+	},
 };
 
 #[derive(Parser)]
@@ -20,80 +23,66 @@ struct Args {
 	#[clap(short = 'o', long = "output")]
 	output_path: Option<PathBuf>,
 
-	#[clap(long = "number")]
-	phone_number: String,
-
-	#[clap(long = "recipient")]
-	recipient: String,
+	#[clap(long)]
+	name: String,
 }
 
-struct Message {
-	content: Option<String>,
-	is_from_me: bool,
+#[derive(Debug)]
+enum Error {
+	Io(io::ErrorKind),
+	Sql(rusqlite::Error),
 }
 
-fn get_sms_id(manifest_path: &Path) -> rusqlite::Result<String> {
-	let manifest_db = rusqlite::Connection::open(manifest_path)?;
-
-	let mut sql = manifest_db.prepare("SELECT fileID FROM Files WHERE relativePath=?1")?;
-	let mut rows = sql.query(params!["Library/SMS/sms.db"])?;
-
-	let mut file_ids = Vec::new();
-	while let Some(row) = rows.next()? {
-		file_ids.push(row.get::<_, String>(0)?.to_string());
+impl fmt::Display for Error {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			Self::Io(io_error) => write!(f, "{}", io_error.to_string()),
+			Self::Sql(sql_error) => write!(f, "{}", sql_error.to_string()),
+		}
 	}
-
-	Ok(file_ids[0].clone())
 }
 
-fn get_handle_id(messages_db: &rusqlite::Connection, phone_number: &str) -> rusqlite::Result<usize> {
-	let mut sql = messages_db.prepare("SELECT rowid FROM handle WHERE id=?1 AND service=?2")?;
-	let mut rows = sql.query(params![phone_number, "iMessage"])?;
+impl std::error::Error for Error {}
 
-	let mut handle_ids = Vec::new();
-	while let Some(row) = rows.next()? {
-		handle_ids.push(row.get::<_, usize>(0)?);
+impl From<io::Error> for Error {
+	fn from(error: io::Error) -> Self {
+		Error::Io(error.kind())
 	}
-
-	Ok(handle_ids[0])
 }
 
-fn get_messages(messages_db: &rusqlite::Connection, handle_id: usize) -> rusqlite::Result<Vec<Message>> {
-	let mut sql = messages_db.prepare("SELECT text, is_from_me FROM message WHERE handle_id=?1")?;
-	let mut rows = sql.query(params![handle_id])?;
-
-	let mut messages = Vec::new();
-	while let Some(row) = rows.next()? {
-		messages.push(Message {
-			content: row.get(0)?,
-			is_from_me: row.get::<_, i32>(1)? == 1,
-		});
+impl From<rusqlite::Error> for Error {
+	fn from(error: rusqlite::Error) -> Self {
+		Error::Sql(error)
 	}
-
-	Ok(messages)
 }
 
-fn main() -> rusqlite::Result<()> {
+type Result<T> = std::result::Result<T, Error>;
+
+fn main() -> Result<()> {
 	let args = Args::parse();
 
-	let manifest_path = args.backup_path.join("Manifest.db");
-	let sms_file_id = get_sms_id(&manifest_path)?;
+	let manifest = Manifest::open(&args.backup_path)?;
+	let address_book = manifest.address_book()?;
+	let messages_db = manifest.messages()?;
 
-	println!("SMS File ID: {}", sms_file_id);
+	let phone_number = address_book.get_phone_number(&args.name)?;
+	let messages = messages_db.all(&phone_number)?;
 
-	let messages_path = args.backup_path
-		.join(&sms_file_id[..2])
-		.join(sms_file_id);
-	
-	let messages_db = rusqlite::Connection::open(messages_path)?;
-	let handle_id = get_handle_id(&messages_db, &args.phone_number)?;
+	if let Some(output_path) = args.output_path {
+		let mut file = File::create(output_path)?;
 
-	println!("Handle ID: {}", handle_id);
-
-	let messages = get_messages(&messages_db, handle_id)?;
-	
-	for message in messages {
-		println!("[{}]: {}", if message.is_from_me { "me" } else { &args.recipient }, message.content.unwrap_or("<image>".to_owned()));
+		for message in messages {
+			file.write_all(
+				format!("[{}]: {}\n",
+					if message.is_from_me { "me" } else { &args.name },
+					message.content.unwrap_or("<image>".to_owned()),
+				).as_bytes(),
+			)?;
+		}
+	} else {
+		for message in messages {
+			println!("[{}]: {}", if message.is_from_me { "me" } else { &args.name }, message.content.unwrap_or("<image>".to_owned()));
+		}
 	}
 	
 	Ok(())
