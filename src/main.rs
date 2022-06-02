@@ -1,5 +1,7 @@
 use std::io::Write;
 
+use chrono::Duration;
+
 mod address_book;
 mod manifest;
 mod messages;
@@ -71,11 +73,21 @@ fn main() -> Result<()> {
 	if let Some(output_path) = args.output_path {
 		let mut file = File::create(output_path)?;
 
-		for message in messages {
+		for m in 0..messages.len() {
+			let msg = &messages[m];
+			let last_msg = messages.get(m - 1);
+
+			if (last_msg.is_some() && msg.timestamp - last_msg.unwrap().timestamp > Duration::hours(2)) || (last_msg.is_none()) {
+				file.write_all(
+					format!("\n      - {} -\n\n", msg.timestamp.format("%A, %B %d, %Y at %I:%M %p"))
+						.as_bytes()
+				)?;
+			}
+
 			file.write_all(
 				format!("[{}]: {}\n",
-					if message.is_from_me { "me" } else { &args.name },
-					message.content.unwrap_or("<image>".to_owned()),
+					if msg.is_from_me { "me" } else { &args.name },
+					msg.content.clone().unwrap_or("<image>".to_owned()),
 				).as_bytes(),
 			)?;
 		}
