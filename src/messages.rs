@@ -1,6 +1,15 @@
 use {
-	chrono::{DateTime, NaiveDateTime, Local, TimeZone},
-	rusqlite::{Connection as DbConnection, params, Result}
+	chrono::{
+		DateTime,
+		NaiveDateTime,
+		Local,
+		TimeZone,
+	},
+	rusqlite::{
+		Connection as DbConnection,
+		params,
+		Result,
+	},
 };
 
 const TIMESTAMP_OFFSET: i64 = 978325200;

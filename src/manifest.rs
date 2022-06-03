@@ -1,6 +1,18 @@
-use crate::{address_book::AddressBook, messages::Messages};
-use rusqlite::{Connection as DbConnection, params, Result};
-use std::path::{Path, PathBuf};
+use {
+	crate::{
+		address_book::AddressBook,
+		messages::Messages,
+	},
+	rusqlite::{
+		Connection as DbConnection,
+		params,
+		Result,
+	},
+	std::path::{
+		Path,
+		PathBuf,
+	},
+};
 
 pub struct Manifest {
 	local_backup_path: PathBuf,

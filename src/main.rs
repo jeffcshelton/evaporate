@@ -1,19 +1,16 @@
-use std::io::Write;
-
-use chrono::Duration;
-
 mod address_book;
 mod manifest;
 mod messages;
 
 use {
+	chrono::Duration,
 	clap::Parser,
 	manifest::Manifest,
 	std::{
 		path::PathBuf,
 		fmt,
 		fs::File,
-		io
+		io::{self, Write},
 	},
 };
 

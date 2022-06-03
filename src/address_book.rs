@@ -1,4 +1,8 @@
-use rusqlite::{Connection as DbConnection, params, Result};
+use rusqlite::{
+	Connection as DbConnection,
+	params,
+	Result,
+};
 
 pub struct AddressBook {
 	pub(crate) connection: DbConnection
