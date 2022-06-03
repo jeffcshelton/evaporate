@@ -27,3 +27,7 @@ $ evaporate <path-to-backup> --name <name-of-contact>
 ## Acknowledements
 
 Huge thanks to Rich Infante for writing his guide [Reverse Engineering the iOS Backup](https://www.richinfante.com/2017/3/16/reverse-engineering-the-ios-backup). No code is directly copied from his guide, but many of the techniques shown in it are used in `evaporate`. The guide helped reduce the time required to write this tool significantly, and I greatly appreciate his effort in publishing it.
+
+## License
+
+`evaporate` is licensed under the [MIT License](LICENSE).
