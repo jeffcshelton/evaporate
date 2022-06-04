@@ -84,7 +84,7 @@ fn main() -> Result<()> {
 			file.write_all(
 				format!("[{}]: {}\n",
 					if msg.is_from_me { "me" } else { &args.name },
-					msg.content.clone().unwrap_or("<image>".to_owned()),
+					msg.content.clone().unwrap_or("<unknown>".to_owned()),
 				).as_bytes(),
 			)?;
 		}
