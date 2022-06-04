@@ -12,7 +12,7 @@ use {
 	},
 };
 
-const TIMESTAMP_OFFSET: i64 = 978325200;
+const TIMESTAMP_OFFSET: i64 = 978307200; // UNIX timestamp of Jan 1, 2001 @ 00:00 (Apple's choice)
 
 pub struct Messages {
 	pub (crate) connection: DbConnection
@@ -43,7 +43,7 @@ impl Messages {
 			messages.push(Message {
 				content: row.get(0)?,
 				is_from_me: row.get::<_, i32>(1)? == 1,
-				timestamp: Local.from_local_datetime(&datetime).unwrap(),
+				timestamp: Local.from_utc_datetime(&datetime),
 			});
 		}
 
