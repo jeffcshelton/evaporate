@@ -15,7 +15,7 @@ use {
 const TIMESTAMP_OFFSET: i64 = 978307200; // UNIX timestamp of Jan 1, 2001 @ 00:00 (Apple's choice)
 
 pub struct Messages {
-	pub (crate) connection: DbConnection
+	pub(crate) connection: DbConnection
 }
 
 #[derive(Clone)]
