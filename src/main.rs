@@ -76,7 +76,7 @@ fn main() -> Result<()> {
 
 			if (last_msg.is_some() && msg.timestamp - last_msg.unwrap().timestamp > Duration::hours(2)) || (last_msg.is_none()) {
 				file.write_all(
-					format!("\n      | {} |\n\n", msg.timestamp.format("%A, %B %d, %Y - %I:%M %p"))
+					format!("\n      | {} |\n\n", msg.timestamp.format("%A, %B %d, %Y @ %I:%M %p"))
 						.as_bytes()
 				)?;
 			}
@@ -84,7 +84,7 @@ fn main() -> Result<()> {
 			file.write_all(
 				format!("[{}]: {}\n",
 					if msg.is_from_me { "me" } else { &args.name },
-					msg.content.clone().unwrap_or("<image>".to_owned()),
+					msg.content.clone().unwrap_or("<unknown>".to_owned()),
 				).as_bytes(),
 			)?;
 		}
