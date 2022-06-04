@@ -31,8 +31,8 @@ impl Messages {
 		let mut handle_rows = handle_sql.query(params![phone_number, "iMessage"])?;
 		let handle_id: i32 = handle_rows.next()?.unwrap().get(0)?; // TODO: Remove .unwrap()
 		
-		let mut messages_sql = self.connection.prepare("SELECT text, is_from_me, date FROM message WHERE handle_id=?1")?;
-		let mut message_rows = messages_sql.query(params![handle_id])?;
+		let mut messages_sql = self.connection.prepare("SELECT text, is_from_me, date FROM message WHERE handle_id=?1 AND type=?2")?;
+		let mut message_rows = messages_sql.query(params![handle_id, 0])?;
 
 		let mut messages = Vec::new();
 
