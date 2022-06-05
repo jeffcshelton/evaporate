@@ -17,8 +17,8 @@ impl AddressBook {
 				SELECT RowID
 				FROM ABPerson
 				WHERE (First || ' ' || Last)=?1
-			) AND property=?2"
-		)?;
+			) AND property=?2
+		")?;
 
 		let mut rows = sql.query(params![name, 3_i32])?;
 		let mut phone_number = rows
@@ -35,6 +35,32 @@ impl AddressBook {
 			name: name.to_string(),
 			phone_number: phone_number,
 		})
+	}
+
+	pub fn get_all(&self) -> Result<Vec<Contact>> {
+		let mut sql = self.connection.prepare("
+			SELECT ABPerson.First || COALESCE(' ' || ABPerson.Last, ''), ABMultiValue.value
+			FROM ABPerson
+			INNER JOIN ABMultiValue
+			ON ABPerson.RowID=ABMultiValue.record_id AND property=?1
+		")?;
+
+		let mut rows = sql.query(params![3_i32])?;
+		let mut contacts = Vec::new();
+
+		while let Some(row) = rows.next()? {
+			let name = row.get::<_, Option<String>>(0)?;
+			let phone_number = row.get::<_, String>(1)?;
+
+			if let Some(name) = name {
+				contacts.push(Contact {
+					name: name,
+					phone_number: phone_number,
+				});
+			}
+		}
+
+		Ok(contacts)
 	}
 }
 
