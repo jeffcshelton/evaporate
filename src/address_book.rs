@@ -9,7 +9,7 @@ pub struct AddressBook {
 }
 
 impl AddressBook {
-	pub fn get_phone_number(&self, name: &str) -> Result<String> {
+	pub fn get_contact(&self, name: &str) -> Result<Contact> {
 		let mut person_sql = self.connection.prepare("SELECT RowID FROM ABPerson WHERE (First || ' ' || Last)=?1")?;
 		let mut person_rows = person_sql.query(params![name])?;
 		let person_id = person_rows 
@@ -29,6 +29,14 @@ impl AddressBook {
 			phone_number = "+1".to_owned() + &phone_number;
 		}
 
-		Ok(phone_number)
+		Ok(Contact {
+			name: name.to_string(),
+			phone_number: phone_number,
+		})
 	}
+}
+
+pub struct Contact {
+	pub name: String,
+	pub phone_number: String,
 }
