@@ -10,16 +10,18 @@ pub struct AddressBook {
 
 impl AddressBook {
 	pub fn get_contact(&self, name: &str) -> Result<Contact> {
-		let mut person_sql = self.connection.prepare("SELECT RowID FROM ABPerson WHERE (First || ' ' || Last)=?1")?;
-		let mut person_rows = person_sql.query(params![name])?;
-		let person_id = person_rows 
-			.next()?
-			.unwrap() // TODO: Remove .unwrap()
-			.get::<_, i32>(0)?;
+		let mut sql = self.connection.prepare("
+			SELECT value
+			FROM ABMultiValue
+			WHERE record_id=(
+				SELECT RowID
+				FROM ABPerson
+				WHERE (First || ' ' || Last)=?1
+			) AND property=?2"
+		)?;
 
-		let mut number_sql = self.connection.prepare("SELECT value FROM ABMultiValue WHERE record_id=?1 AND property=?2")?;
-		let mut number_rows = number_sql.query(params![person_id, 3_i32])?;
-		let mut phone_number = number_rows
+		let mut rows = sql.query(params![name, 3_i32])?;
+		let mut phone_number = rows
 			.next()?
 			.unwrap() // TODO: Remove .unwrap()
 			.get::<_, String>(0)?
