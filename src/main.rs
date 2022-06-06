@@ -4,7 +4,7 @@ mod messages;
 
 use clap::{Parser, Subcommand};
 use manifest::Manifest;
-use std::{path::PathBuf, fmt, io};
+use std::{path::PathBuf, fmt, fs, io};
 
 #[derive(Subcommand)]
 enum Action {
@@ -31,6 +31,7 @@ struct Args {
 pub enum Error {
 	Io(io::ErrorKind),
 	Sql(rusqlite::Error),
+	NoMessages,
 }
 
 impl fmt::Display for Error {
@@ -38,6 +39,7 @@ impl fmt::Display for Error {
 		match self {
 			Self::Io(io_error) => write!(f, "{}", io_error.to_string()),
 			Self::Sql(sql_error) => write!(f, "{}", sql_error.to_string()),
+			Self::NoMessages => write!(f, "no messages"),
 		}
 	}
 }
@@ -62,19 +64,30 @@ fn main() -> Result<()> {
 	let args = Args::parse();
 	let manifest = Manifest::open(&args.backup_path)?;
 
+	let address_book = manifest.address_book()?;
+	let messages = manifest.messages()?;
+
 	match args.action {
 		Action::All => {
-			manifest.messages()?.extract_all(&args.output_path)?;
+			fs::create_dir(&args.output_path)?;
+
+			for contact in address_book.get_all()?.iter() {
+				messages.extract(&contact, &args.output_path.join(&contact.name).with_extension("txt"))?;
+			}
 		},
 		Action::Messages { contact_name } => {
 			if let Some(contact_name) = contact_name {
-				let contact = manifest.address_book()?.get_contact(&contact_name)?;
-				manifest.messages()?.extract(contact, &args.output_path)?;
+				let contact = address_book.get_contact(&contact_name)?;
+				messages.extract(&contact, &args.output_path)?;
 			} else {
-				unimplemented!();
+				fs::create_dir(&args.output_path)?;
+
+				for contact in address_book.get_all()? {
+					messages.extract(&contact, &args.output_path.join(&contact.name).with_extension("txt"))?;
+				}
 			}
 		}
 	}
-	
+
 	Ok(())
 }
