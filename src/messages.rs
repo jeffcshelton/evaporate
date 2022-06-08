@@ -1,9 +1,7 @@
 use chrono::{Local, NaiveDateTime, TimeZone};
-use crate::{address_book::Contact, Result};
+use crate::{address_book::Contact, Result, TIMESTAMP_OFFSET, DATE_FORMAT_STR};
 use rusqlite::{Connection as DbConnection, params};
 use std::{fs::{self, File}, io::Write, path::Path};
-
-const TIMESTAMP_OFFSET: i64 = 978307200; // UNIX timestamp of Jan 1, 2001 @ 00:00 (Apple's choice)
 
 pub struct Messages {
 	pub(crate) connection: DbConnection
@@ -37,7 +35,7 @@ impl Messages {
 				let datetime = Local.from_utc_datetime(&NaiveDateTime::from_timestamp(raw_timestamp + TIMESTAMP_OFFSET, 0));
 
 				file.write_all(
-					format!("\n      | {} |\n\n", datetime.format("%A, %B %d, %Y @ %I:%M %p"))
+					format!("\n      | {} |\n\n", datetime.format(DATE_FORMAT_STR))
 						.as_bytes()
 				)?;
 			}

@@ -6,11 +6,9 @@ use clap::{Parser, Subcommand};
 use manifest::Manifest;
 use std::{path::PathBuf, fmt, fs, io};
 
-#[derive(Subcommand)]
-enum Action {
-	All {
-		#[clap(parse(from_os_str))]
-		backup_path: PathBuf,
+// UNIX timestamp of Jan 1, 2001 @ 00:00 (Apple's choice)
+const TIMESTAMP_OFFSET: i64 = 978307200;
+const DATE_FORMAT_STR: &'static str = "%A, %B %d, %Y @ %I:%M %p";
 
 		#[clap(parse(from_os_str), short = 'o', long = "output")]
 		output_path: PathBuf,
