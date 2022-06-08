@@ -42,7 +42,7 @@ impl Messages {
 
 			file.write_all(
 				format!("[{}]: {}\n",
-					if is_from_me { "me" } else { &contact.name },
+					if is_from_me { "me" } else { &contact.first_name },
 					content.clone().unwrap_or("<unknown>".to_owned()),
 				).as_bytes(),
 			)?;

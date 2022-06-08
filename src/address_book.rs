@@ -95,6 +95,19 @@ impl AddressBook {
 	}
 }
 
+impl Contact {
+	pub fn name(&self) -> String {
+		let mut ret = self.first_name.clone();
+
+		if let Some(last_name) = &self.last_name {
+			ret.push(' ');
+			ret.push_str(&last_name);
+		}
+
+		ret
+	}
+}
+
 impl ToString for Contact {
 	fn to_string(&self) -> String {
 		let mut ret = "[".to_owned();
