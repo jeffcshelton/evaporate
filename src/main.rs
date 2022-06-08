@@ -62,25 +62,18 @@ fn main() -> Result<()> {
 	let args = Args::parse();
 	let manifest = Manifest::open(&args.backup_path)?;
 
-	// let address_book = manifest.address_book()?;
-	// let messages = manifest.messages()?;
+	let contacts = Contacts::fetch(&manifest)?;
+	let messages = Messages::fetch(&manifest, &contacts)?;
 
-	// let contacts_dir = args.output_path.join("contacts");
-	// let messages_dir = args.output_path.join("messages");
+	fs::create_dir(&args.output_path)?;
 
-	// fs::create_dir(&args.output_path)?;
+	if !args.no_contacts {
+		contacts.extract_to(args.output_path.join("contacts.txt"))?;
+	}
 
-	// if !args.no_contacts {
-	// 	fs::create_dir(&contacts_dir)?;
-	// }
-
-	// if !args.no_messages {
-	// 	fs::create_dir(&messages_dir)?;
-
-	// 	for contact in address_book.get_all()?.iter() {
-	// 		messages.extract(&contact, messages_dir.join(&contact.name()).with_extension("txt"))?;
-	// 	}
-	// }
+	if !args.no_messages {
+		messages.extract_to(args.output_path.join("messages"))?;
+	}
 
 	Ok(())
 }
