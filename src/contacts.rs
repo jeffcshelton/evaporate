@@ -1,7 +1,27 @@
-use crate::{Result, TIMESTAMP_OFFSET, DATE_FORMAT_STR, manifest::Manifest};
-use chrono::{Date, Local, TimeZone, NaiveDateTime};
 use rusqlite::{Connection as DbConnection, params};
-use std::slice::Iter;
+
+use chrono::{
+	Date,
+	Local,
+	NaiveDateTime,
+	TimeZone,
+};
+
+use crate::{
+	constants::{
+		DATE_FORMAT_STR,
+		TIMESTAMP_OFFSET,
+	},
+	manifest::Manifest,
+	Result,
+};
+
+use std::{
+	fs::File,
+	io::Write,
+	path::Path,
+	slice::Iter,
+};
 
 pub struct Contact {
 	pub first_name: String,

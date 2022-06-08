@@ -1,3 +1,4 @@
+mod constants;
 mod contacts;
 mod manifest;
 mod messages;
@@ -8,10 +9,6 @@ use messages::Messages;
 
 use clap::Parser;
 use std::{path::PathBuf, fmt, fs, io};
-
-// UNIX timestamp of Jan 1, 2001 @ 00:00 (Apple's choice)
-const TIMESTAMP_OFFSET: i64 = 978307200;
-const DATE_FORMAT_STR: &'static str = "%A, %B %d, %Y @ %I:%M %p";
 
 #[derive(Parser)]
 struct Args {
