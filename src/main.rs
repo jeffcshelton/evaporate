@@ -2,7 +2,7 @@ mod address_book;
 mod manifest;
 mod messages;
 
-use clap::{Parser, Subcommand};
+use clap::Parser;
 use manifest::Manifest;
 use std::{path::PathBuf, fmt, fs, io};
 
@@ -10,35 +10,13 @@ use std::{path::PathBuf, fmt, fs, io};
 const TIMESTAMP_OFFSET: i64 = 978307200;
 const DATE_FORMAT_STR: &'static str = "%A, %B %d, %Y @ %I:%M %p";
 
-		#[clap(parse(from_os_str), short = 'o', long = "output")]
-		output_path: PathBuf,
-	},
-	Messages {
-		#[clap(long = "contact")]
-		contact_name: Option<String>,
-
-		#[clap(parse(from_os_str))]
-		backup_path: PathBuf,
-
-		#[clap(parse(from_os_str), short = 'o', long = "output")]
-		output_path: PathBuf,
-	},
-}
-
 #[derive(Parser)]
 struct Args {
-	#[clap(subcommand)]
-	action: Action,
-}
+	#[clap(parse(from_os_str))]
+	backup_path: PathBuf,
 
-impl Args {
-	// TODO: Remove this after a better solution comes about
-	pub fn backup_path(&self) -> &PathBuf {
-		match &self.action {
-			Action::All { backup_path, .. } => backup_path,
-			Action::Messages { backup_path, .. } => backup_path,
-		}
-	}
+	#[clap(parse(from_os_str), short = 'o', long = "output")]
+	output_path: PathBuf,
 }
 
 #[derive(Debug)]
@@ -76,32 +54,12 @@ type Result<T> = std::result::Result<T, Error>;
 
 fn main() -> Result<()> {
 	let args = Args::parse();
-	let manifest = Manifest::open(args.backup_path())?;
+	let manifest = Manifest::open(&args.backup_path)?;
 
 	let address_book = manifest.address_book()?;
 	let messages = manifest.messages()?;
 
-	match args.action {
-		Action::All { output_path, .. } => {
-			fs::create_dir(&output_path)?;
-
-			for contact in address_book.get_all()?.iter() {
-				messages.extract(&contact, output_path.join(&contact.name).with_extension("txt"))?;
-			}
-		},
-		Action::Messages { contact_name, output_path, .. } => {
-			if let Some(contact_name) = contact_name {
-				let contact = address_book.get_contact(&contact_name)?;
-				messages.extract(&contact, &output_path)?;
-			} else {
-				fs::create_dir(&output_path)?;
-
-				for contact in address_book.get_all()? {
-					messages.extract(&contact, output_path.join(&contact.name).with_extension("txt"))?;
-				}
-			}
-		}
-	}
+	fs::create_dir(&args.output_path)?;
 
 	Ok(())
 }
