@@ -1,12 +1,26 @@
-use chrono::{Local, NaiveDateTime, TimeZone, DateTime};
 use rusqlite::{Connection as DbConnection, params};
-use std::collections::HashMap;
+
+use chrono::{
+	Local,
+	NaiveDateTime,
+	TimeZone,
+	DateTime,
+	Duration,
+};
 
 use crate::{
 	contacts::Contacts,
+	DATE_FORMAT_STR,
 	manifest::Manifest,
 	Result,
 	TIMESTAMP_OFFSET,
+};
+
+use std::{
+	collections::HashMap,
+	fs::{self, File},
+	io::Write,
+	path::Path,
 };
 
 pub struct Message {
@@ -57,5 +71,39 @@ impl Messages {
 		}
 
 		Ok(Self { messages: messages })
+	}
+
+	pub fn extract_to<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+		let path = path.as_ref();
+		fs::create_dir(path)?;
+
+		for (name, conversation) in &self.messages {
+			if conversation.is_empty() {
+				continue;
+			}
+
+			let mut file = File::create(path.join(name))?;
+			let mut last_timestamp = Local.timestamp(0, 0);
+
+			for message in conversation {
+				if message.timestamp - last_timestamp > Duration::hours(2) {
+					file.write_all(
+						format!("\n      | {} |\n\n", message.timestamp.format(DATE_FORMAT_STR))
+							.as_bytes()
+					)?;
+				}
+
+				file.write_all(
+					format!("[{}]: {}\n",
+						if message.is_from_me { "me" } else { &name },
+						if let Some(content) = &message.content { content } else { "<unknown>" },
+					).as_bytes()
+				)?;
+
+				last_timestamp = message.timestamp;
+			}
+		}
+
+		Ok(())
 	}
 }
