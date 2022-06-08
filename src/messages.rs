@@ -3,7 +3,7 @@ use rusqlite::{Connection as DbConnection, params};
 use std::collections::HashMap;
 
 use crate::{
-	address_book::Contacts,
+	contacts::Contacts,
 	manifest::Manifest,
 	Result,
 	TIMESTAMP_OFFSET,

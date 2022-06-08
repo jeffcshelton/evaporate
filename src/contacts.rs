@@ -3,10 +3,6 @@ use chrono::{Date, Local, TimeZone, NaiveDateTime};
 use rusqlite::{Connection as DbConnection, params};
 use std::slice::Iter;
 
-pub struct AddressBook {
-	pub(crate) connection: DbConnection
-}
-
 pub struct Contact {
 	pub first_name: String,
 	pub middle_name: Option<String>,

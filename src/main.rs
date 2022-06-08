@@ -1,9 +1,12 @@
-mod address_book;
+mod contacts;
 mod manifest;
 mod messages;
 
-use clap::Parser;
+use contacts::Contacts;
 use manifest::Manifest;
+use messages::Messages;
+
+use clap::Parser;
 use std::{path::PathBuf, fmt, fs, io};
 
 // UNIX timestamp of Jan 1, 2001 @ 00:00 (Apple's choice)
