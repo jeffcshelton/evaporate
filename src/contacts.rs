@@ -120,6 +120,17 @@ impl Contacts {
 	pub fn iter(&self) -> Iter<Contact> {
 		self.contacts.iter()
 	}
+
+	pub fn extract_to<P: AsRef<Path>>(&self, path: P) -> Result<()> {
+		let path = path.as_ref();
+		let mut file = File::create(path)?;
+
+		for contact in &self.contacts {
+			file.write_all((contact.to_string() + "\n").as_bytes())?;
+		}
+
+		Ok(())
+	}
 }
 
 impl Contact {
@@ -203,6 +214,8 @@ impl ToString for Contact {
 			ret.push_str("\nNote: ");
 			ret.push_str(&note);
 		}
+
+		ret.push('\n');
 
 		ret
 	}
