@@ -28,7 +28,7 @@ impl Manifest {
 	pub fn get_path(&self, device_relative_path: &str) -> Result<PathBuf> {
 		let mut sql = self.connection.prepare("SELECT fileID FROM Files WHERE relativePath=?1")?;
 
-		let mut file_hash = sql.query_row(
+		let file_hash = sql.query_row(
 			params![device_relative_path],
 			|row| Ok(row.get::<_, String>(0)?)
 		)?;
