@@ -1,6 +1,7 @@
-use crate::{Result, TIMESTAMP_OFFSET, DATE_FORMAT_STR};
+use crate::{Result, TIMESTAMP_OFFSET, DATE_FORMAT_STR, manifest::Manifest};
 use chrono::{Date, Local, TimeZone, NaiveDateTime};
 use rusqlite::{Connection as DbConnection, params};
+use std::slice::Iter;
 
 pub struct AddressBook {
 	pub(crate) connection: DbConnection
@@ -26,9 +27,15 @@ pub struct Contact {
 	pub note: Option<String>,
 }
 
-impl AddressBook {
-	pub fn get_all(&self) -> Result<Vec<Contact>> {
-		let mut sql = self.connection.prepare("
+pub struct Contacts {
+	contacts: Vec<Contact>
+}
+
+impl Contacts {
+	pub fn fetch(manifest: &Manifest) -> Result<Self> {
+		let connection = DbConnection::open(manifest.get_path("Library/AddressBook/AddressBook.sqlitedb")?)?;
+
+		let mut sql = connection.prepare("
 			SELECT
 				Person.First,
 				Person.Middle,
@@ -91,7 +98,11 @@ impl AddressBook {
 			});
 		}
 
-		Ok(contacts)
+		Ok(Self { contacts: contacts })
+	}
+
+	pub fn iter(&self) -> Iter<Contact> {
+		self.contacts.iter()
 	}
 }
 
