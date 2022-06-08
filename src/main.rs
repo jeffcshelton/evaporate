@@ -17,6 +17,12 @@ struct Args {
 
 	#[clap(parse(from_os_str), short = 'o', long = "output")]
 	output_path: PathBuf,
+
+	#[clap(long = "no-contacts")]
+	no_contacts: bool,
+
+	#[clap(long = "no-messages")]
+	no_messages: bool,
 }
 
 #[derive(Debug)]
@@ -59,7 +65,22 @@ fn main() -> Result<()> {
 	let address_book = manifest.address_book()?;
 	let messages = manifest.messages()?;
 
+	let contacts_dir = args.output_path.join("contacts");
+	let messages_dir = args.output_path.join("messages");
+
 	fs::create_dir(&args.output_path)?;
+
+	if !args.no_contacts {
+		fs::create_dir(&contacts_dir)?;
+	}
+
+	if !args.no_messages {
+		fs::create_dir(&messages_dir)?;
+
+		for contact in address_book.get_all()?.iter() {
+			messages.extract(&contact, messages_dir.join(&contact.name()).with_extension("txt"))?;
+		}
+	}
 
 	Ok(())
 }
