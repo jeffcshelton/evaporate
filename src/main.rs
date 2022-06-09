@@ -4,12 +4,8 @@ mod manifest;
 mod messages;
 mod photos;
 
-use contacts::Contacts;
-use manifest::Manifest;
-use messages::Messages;
-use photos::Photos;
-
 use clap::Parser;
+use manifest::Manifest;
 use std::{path::PathBuf, fmt, fs, io, process};
 
 #[derive(Parser)]
@@ -70,38 +66,27 @@ fn main() {
 			panic!();
 		});
 
-	let contacts = Contacts::fetch(&manifest);
-
 	fs::create_dir(&args.output_path).unwrap_or_else(|error| {
 		println!("\x1b[31m! Could not create output directory: {} !\x1b[0m", error);
 		process::exit(1);
 	});
 
 	if !args.no_contacts {
-		let result = contacts
-			.and_then(|contacts| contacts.extract_to(args.output_path.join("contacts.txt")));
-
-		match result {
+		match contacts::extract_to(args.output_path.join("contacts.txt"), &manifest) {
 			Ok(()) => println!("\x1b[32mSuccessfully extracted contacts.\x1b[0m"),
 			Err(error) => println!("\x1b[33m! Failed to extract contacts: {} !\x1b[0m", error),
 		};
 	}
 
 	if !args.no_messages {
-		let result = Messages::fetch(&manifest)
-			.and_then(|messages| messages.extract_to(args.output_path.join("messages")));
-
-		match result {
+		match messages::extract_to(args.output_path.join("messages"), &manifest) {
 			Ok(()) => println!("\x1b[32mSuccessfully extracted messages.\x1b[0m"),
 			Err(error) => println!("\x1b[33m! Failed to extract messages: {} !\x1b[0m", error),
 		};
 	}
 
 	if !args.no_photos {
-		let result = Photos::fetch(&manifest)
-			.and_then(|photos| photos.extract_to(args.output_path.join("photos")));
-
-		match result {
+		match photos::extract_to(args.output_path.join("photos"), &manifest) {
 			Ok(()) => println!("\x1b[32mSuccessfully extracted photos.\x1b[0m"),
 			Err(error) => println!("\x1b[33m! Failed to extract photos: {} !\x1b[0m", error),
 		};

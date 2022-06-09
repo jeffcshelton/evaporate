@@ -30,100 +30,94 @@ pub struct Message {
 	timestamp: DateTime<Local>
 }
 
-pub struct Messages {
-	messages: HashMap<String, Vec<Message>>
+fn fetch(manifest: &Manifest) -> Result<HashMap<String, Vec<Message>>> {
+	let messages_path = manifest.get_path("Library/SMS/sms.db")?;
+	let contacts_path = manifest.get_path("Library/AddressBook/AddressBook.sqlitedb")?;
+
+	let connection = DbConnection::open(messages_path)?;
+	connection.execute("ATTACH DATABASE ?1 AS AddressBook", params![contacts_path.to_string_lossy()])?;
+
+	let mut sql = connection.prepare("
+		SELECT
+			Message.text,
+			Message.is_from_me,
+			Message.date / 1000000000,
+			Contact.First || COALESCE(' ' || Contact.Last, '')
+		FROM Message
+		INNER JOIN AddressBook.ABMultiValue AS PhoneNumber ON
+			PhoneNumber.property = 3
+			AND handle.id = REPLACE(REPLACE(REPLACE(REPLACE(
+				CASE WHEN PhoneNumber.value NOT LIKE '+%'
+					THEN '+1' || PhoneNumber.value
+					ELSE PhoneNumber.value
+				END,
+			'(', ''), ')', ''), ' ', ''), '-', '')
+		INNER JOIN AddressBook.ABPerson AS Contact ON
+			Contact.RowID = PhoneNumber.record_id
+		INNER JOIN handle ON
+			Message.handle_id=handle.RowID
+			AND handle.service IS NOT NULL
+		WHERE
+			Message.type = 0
+			AND Contact.First IS NOT NULL
+		ORDER BY Message.date ASC
+	")?;
+
+	let mut messages = HashMap::<String, Vec<Message>>::new();
+	let mut rows = sql.query([])?;
+
+	while let Some(row) = rows.next()? {
+		let name: String = row.get(3)?;
+		let timestamp = Local.from_utc_datetime(
+			&NaiveDateTime::from_timestamp(row.get::<_, i64>(2)? + TIMESTAMP_OFFSET, 0)
+		);
+
+		let message = Message {
+			content: row.get(0)?,
+			is_from_me: row.get(1)?,
+			timestamp: timestamp,
+		};
+
+		if let Some(conversation) = messages.get_mut(&name) {
+			conversation.push(message);
+		} else {
+			messages.insert(name, vec![message]);
+		}
+	}
+
+	Ok(messages)
 }
 
-impl Messages {
-	pub fn fetch(manifest: &Manifest) -> Result<Self> {
-		let messages_path = manifest.get_path("Library/SMS/sms.db")?;
-		let contacts_path = manifest.get_path("Library/AddressBook/AddressBook.sqlitedb")?;
+pub fn extract_to<P: AsRef<Path>>(path: P, manifest: &Manifest) -> Result<()> {
+	let path = path.as_ref();
+	fs::create_dir(path)?;
 
-		let connection = DbConnection::open(messages_path)?;
-		connection.execute("ATTACH DATABASE ?1 AS AddressBook", params![contacts_path.to_string_lossy()])?;
-
-		let mut sql = connection.prepare("
-			SELECT
-				Message.text,
-				Message.is_from_me,
-				Message.date / 1000000000,
-				Contact.First || COALESCE(' ' || Contact.Last, '')
-			FROM Message
-			INNER JOIN AddressBook.ABMultiValue AS PhoneNumber ON
-				PhoneNumber.property = 3
-				AND handle.id = REPLACE(REPLACE(REPLACE(REPLACE(
-					CASE WHEN PhoneNumber.value NOT LIKE '+%'
-						THEN '+1' || PhoneNumber.value
-						ELSE PhoneNumber.value
-					END,
-				'(', ''), ')', ''), ' ', ''), '-', '')
-			INNER JOIN AddressBook.ABPerson AS Contact ON
-				Contact.RowID = PhoneNumber.record_id
-			INNER JOIN handle ON
-				Message.handle_id=handle.RowID
-				AND handle.service IS NOT NULL
-			WHERE
-				Message.type = 0
-				AND Contact.First IS NOT NULL
-			ORDER BY Message.date ASC
-		")?;
-
-		let mut messages: HashMap<String, Vec<Message>> = HashMap::new();
-		let mut rows = sql.query([])?;
-
-		while let Some(row) = rows.next()? {
-			let name: String = row.get(3)?;
-			let timestamp = Local.from_utc_datetime(
-				&NaiveDateTime::from_timestamp(row.get::<_, i64>(2)? + TIMESTAMP_OFFSET, 0)
-			);
-
-			let message = Message {
-				content: row.get(0)?,
-				is_from_me: row.get(1)?,
-				timestamp: timestamp,
-			};
-
-			if let Some(conversation) = messages.get_mut(&name) {
-				conversation.push(message);
-			} else {
-				messages.insert(name, vec![message]);
-			}
+	for (name, conversation) in fetch(manifest)? {
+		if conversation.is_empty() {
+			continue;
 		}
 
-		Ok(Self { messages: messages })
-	}
+		let mut file = File::create(path.join(&name).with_extension("txt"))?;
+		let mut last_timestamp = Local.timestamp(0, 0);
 
-	pub fn extract_to<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-		let path = path.as_ref();
-		fs::create_dir(path)?;
-
-		for (name, conversation) in &self.messages {
-			if conversation.is_empty() {
-				continue;
-			}
-
-			let mut file = File::create(path.join(name).with_extension("txt"))?;
-			let mut last_timestamp = Local.timestamp(0, 0);
-
-			for message in conversation {
-				if message.timestamp - last_timestamp > Duration::hours(2) {
-					file.write_all(
-						format!("\n      | {} |\n\n", message.timestamp.format(DATETIME_FORMAT_STR))
-							.as_bytes()
-					)?;
-				}
-
+		for message in conversation {
+			if message.timestamp - last_timestamp > Duration::hours(2) {
 				file.write_all(
-					format!("[{}]: {}\n",
-						if message.is_from_me { "me" } else { &name },
-						if let Some(content) = &message.content { content } else { "<unknown>" },
-					).as_bytes()
+					format!("\n      | {} |\n\n", message.timestamp.format(DATETIME_FORMAT_STR))
+						.as_bytes()
 				)?;
-
-				last_timestamp = message.timestamp;
 			}
-		}
 
-		Ok(())
+			file.write_all(
+				format!("[{}]: {}\n",
+					if message.is_from_me { "me" } else { &name },
+					if let Some(content) = &message.content { content } else { "<unknown>" },
+				).as_bytes()
+			)?;
+
+			last_timestamp = message.timestamp;
+		}
 	}
+
+	Ok(())
 }

@@ -20,7 +20,6 @@ use std::{
 	fs::File,
 	io::Write,
 	path::Path,
-	slice::Iter,
 };
 
 pub struct Contact {
@@ -41,115 +40,6 @@ pub struct Contact {
 	pub birthday: Option<Date<Local>>,
 	pub anniversary: Option<Date<Local>>,
 	pub note: Option<String>,
-}
-
-pub struct Contacts {
-	contacts: Vec<Contact>
-}
-
-impl Contacts {
-	pub fn fetch(manifest: &Manifest) -> Result<Self> {
-		let connection = DbConnection::open(manifest.get_path("Library/AddressBook/AddressBook.sqlitedb")?)?;
-
-		let mut sql = connection.prepare("
-			SELECT
-				Person.First,
-				Person.Middle,
-				Person.Last,
-				Person.Nickname,
-				Person.Prefix,
-				Person.Suffix,
-				PhoneNumber.value,
-				Email.value,
-				Person.Organization,
-				Person.Department,
-				Person.JobTitle,
-				CAST(Person.Birthday AS INT),
-				CAST(Anniversary.value AS INT),
-				Person.Note
-			FROM ABPerson AS Person
-			LEFT JOIN ABMultiValue AS Anniversary
-				ON Person.RowID=Anniversary.record_id AND Anniversary.property=?1
-			LEFT JOIN ABMultiValue AS PhoneNumber
-				ON Person.RowID=PhoneNumber.record_id AND PhoneNumber.property=?2
-			LEFT JOIN ABMultiValue AS Email
-				ON Person.RowID=Email.record_id AND Email.property=?3
-			WHERE Person.First IS NOT NULL
-		")?;
-
-		let mut rows = sql.query(params![12_i32, 3_i32, 4_i32])?;
-		let mut contacts = Vec::new();
-
-		while let Some(row) = rows.next()? {
-			let phone_number = row.get::<_, Option<String>>(6)?
-				.map(|mut num| {
-					num = num.replace(['(', ')', ' ', '-'], "");
-
-					if !num.starts_with('+') {
-						num = "+1".to_owned() + &num;
-					}
-
-					num
-				});
-
-			let birthday = row.get::<_, Option<i64>>(11)?
-				.map(|timestamp| {
-					Local.from_utc_datetime(&NaiveDateTime::from_timestamp(timestamp + TIMESTAMP_OFFSET, 0)).date()
-				});
-
-			let anniversary = row.get::<_, Option<i64>>(12)?
-				.map(|timestamp| {
-					Local.from_utc_datetime(&NaiveDateTime::from_timestamp(timestamp + TIMESTAMP_OFFSET, 0)).date()
-				});
-
-			contacts.push(Contact {
-				first_name: row.get(0)?,
-				middle_name: row.get(1)?,
-				last_name: row.get(2)?,
-				nickname: row.get(3)?,
-				prefix: row.get(4)?,
-				suffix: row.get(5)?,
-				phone_number: phone_number,
-				email: row.get(7)?,
-				organization: row.get(8)?,
-				department: row.get(9)?,
-				job_title: row.get(10)?,
-				birthday: birthday,
-				anniversary: anniversary,
-				note: row.get(13)?,
-			});
-		}
-
-		Ok(Self { contacts: contacts })
-	}
-
-	pub fn iter(&self) -> Iter<Contact> {
-		self.contacts.iter()
-	}
-
-	pub fn extract_to<P: AsRef<Path>>(&self, path: P) -> Result<()> {
-		let path = path.as_ref();
-		let mut file = File::create(path)?;
-
-		for contact in &self.contacts {
-			file.write_all((contact.to_string() + "\n").as_bytes())?;
-		}
-
-		Ok(())
-	}
-}
-
-impl Contact {
-	pub fn name(&self) -> String {
-		let mut ret = self.first_name.clone();
-
-		if let Some(last_name) = &self.last_name {
-			ret.push(' ');
-			ret.push_str(&last_name);
-		}
-
-		ret
-	}
 }
 
 impl ToString for Contact {
@@ -225,4 +115,90 @@ impl ToString for Contact {
 
 		ret
 	}
+}
+
+fn fetch(manifest: &Manifest) -> Result<Vec<Contact>> {
+	let connection = DbConnection::open(manifest.get_path("Library/AddressBook/AddressBook.sqlitedb")?)?;
+
+	let mut sql = connection.prepare("
+		SELECT
+			Person.First,
+			Person.Middle,
+			Person.Last,
+			Person.Nickname,
+			Person.Prefix,
+			Person.Suffix,
+			PhoneNumber.value,
+			Email.value,
+			Person.Organization,
+			Person.Department,
+			Person.JobTitle,
+			CAST(Person.Birthday AS INT),
+			CAST(Anniversary.value AS INT),
+			Person.Note
+		FROM ABPerson AS Person
+		LEFT JOIN ABMultiValue AS Anniversary
+			ON Person.RowID=Anniversary.record_id AND Anniversary.property=?1
+		LEFT JOIN ABMultiValue AS PhoneNumber
+			ON Person.RowID=PhoneNumber.record_id AND PhoneNumber.property=?2
+		LEFT JOIN ABMultiValue AS Email
+			ON Person.RowID=Email.record_id AND Email.property=?3
+		WHERE Person.First IS NOT NULL
+	")?;
+
+	let mut rows = sql.query(params![12_i32, 3_i32, 4_i32])?;
+	let mut contacts = Vec::new();
+
+	while let Some(row) = rows.next()? {
+		let phone_number = row.get::<_, Option<String>>(6)?
+			.map(|mut num| {
+				num = num.replace(['(', ')', ' ', '-'], "");
+
+				if !num.starts_with('+') {
+					num = "+1".to_owned() + &num;
+				}
+
+				num
+			});
+
+		let birthday = row.get::<_, Option<i64>>(11)?
+			.map(|timestamp| {
+				Local.from_utc_datetime(&NaiveDateTime::from_timestamp(timestamp + TIMESTAMP_OFFSET, 0)).date()
+			});
+
+		let anniversary = row.get::<_, Option<i64>>(12)?
+			.map(|timestamp| {
+				Local.from_utc_datetime(&NaiveDateTime::from_timestamp(timestamp + TIMESTAMP_OFFSET, 0)).date()
+			});
+
+		contacts.push(Contact {
+			first_name: row.get(0)?,
+			middle_name: row.get(1)?,
+			last_name: row.get(2)?,
+			nickname: row.get(3)?,
+			prefix: row.get(4)?,
+			suffix: row.get(5)?,
+			phone_number: phone_number,
+			email: row.get(7)?,
+			organization: row.get(8)?,
+			department: row.get(9)?,
+			job_title: row.get(10)?,
+			birthday: birthday,
+			anniversary: anniversary,
+			note: row.get(13)?,
+		});
+	}
+
+	Ok(contacts)
+}
+
+pub fn extract_to<P: AsRef<Path>>(path: P, manifest: &Manifest) -> Result<()> {
+	let path = path.as_ref();
+	let mut file = File::create(path)?;
+
+	for contact in fetch(manifest)? {
+		file.write_all((contact.to_string() + "\n").as_bytes())?;
+	}
+
+	Ok(())
 }
