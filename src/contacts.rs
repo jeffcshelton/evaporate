@@ -64,8 +64,8 @@ impl Contacts {
 				Person.Organization,
 				Person.Department,
 				Person.JobTitle,
-				CAST(Person.Birthday AS INT) / 1000000000,
-				CAST(Anniversary.value AS INT) / 1000000000,
+				CAST(Person.Birthday AS INT),
+				CAST(Anniversary.value AS INT),
 				Person.Note
 			FROM ABPerson AS Person
 			LEFT JOIN ABMultiValue AS Anniversary
@@ -82,8 +82,14 @@ impl Contacts {
 
 		while let Some(row) = rows.next()? {
 			let phone_number = row.get::<_, Option<String>>(6)?
-				.map(|num| {
-					num.replace(['(', ')', ' ', '-'], "")
+				.map(|mut num| {
+					num = num.replace(['(', ')', ' ', '-'], "");
+
+					if !num.starts_with('+') {
+						num = "+1".to_owned() + &num;
+					}
+
+					num
 				});
 
 			let birthday = row.get::<_, Option<i64>>(11)?

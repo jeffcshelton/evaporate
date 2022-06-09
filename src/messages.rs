@@ -84,7 +84,7 @@ impl Messages {
 				continue;
 			}
 
-			let mut file = File::create(path.join(name))?;
+			let mut file = File::create(path.join(name).with_extension("txt"))?;
 			let mut last_timestamp = Local.timestamp(0, 0);
 
 			for message in conversation {
