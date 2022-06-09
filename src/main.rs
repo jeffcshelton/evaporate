@@ -2,10 +2,12 @@ mod constants;
 mod contacts;
 mod manifest;
 mod messages;
+mod photos;
 
 use contacts::Contacts;
 use manifest::Manifest;
 use messages::Messages;
+use photos::Photos;
 
 use clap::Parser;
 use std::{path::PathBuf, fmt, fs, io};
@@ -23,6 +25,9 @@ struct Args {
 
 	#[clap(long = "no-messages")]
 	no_messages: bool,
+
+	#[clap(long = "no-photos")]
+	no_photos: bool,
 }
 
 #[derive(Debug)]
@@ -64,6 +69,7 @@ fn main() -> Result<()> {
 
 	let contacts = Contacts::fetch(&manifest)?;
 	let messages = Messages::fetch(&manifest, &contacts)?;
+	let photos = Photos::fetch(&manifest)?;
 
 	fs::create_dir(&args.output_path)?;
 
@@ -73,6 +79,10 @@ fn main() -> Result<()> {
 
 	if !args.no_messages {
 		messages.extract_to(args.output_path.join("messages"))?;
+	}
+
+	if !args.no_photos {
+		photos.extract_to(args.output_path.join("photos"))?;
 	}
 
 	Ok(())
