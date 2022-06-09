@@ -10,7 +10,7 @@ use messages::Messages;
 use photos::Photos;
 
 use clap::Parser;
-use std::{path::PathBuf, fmt, fs, io};
+use std::{path::PathBuf, fmt, fs, io, process};
 
 #[derive(Parser)]
 struct Args {
@@ -63,27 +63,47 @@ impl From<rusqlite::Error> for Error {
 
 type Result<T> = std::result::Result<T, Error>;
 
-fn main() -> Result<()> {
+fn main() {
 	let args = Args::parse();
-	let manifest = Manifest::open(&args.backup_path)?;
+	let manifest = Manifest::open(&args.backup_path)
+		.unwrap_or_else(|_| {
+			panic!();
+		});
 
-	let contacts = Contacts::fetch(&manifest)?;
-	let messages = Messages::fetch(&manifest, &contacts)?;
-	let photos = Photos::fetch(&manifest)?;
+	let contacts = Contacts::fetch(&manifest);
 
-	fs::create_dir(&args.output_path)?;
+	fs::create_dir(&args.output_path).unwrap_or_else(|error| {
+		println!("\x1b[31m! Could not create output directory: {} !\x1b[0m", error);
+		process::exit(1);
+	});
 
 	if !args.no_contacts {
-		contacts.extract_to(args.output_path.join("contacts.txt"))?;
+		let result = contacts
+			.and_then(|contacts| contacts.extract_to(args.output_path.join("contacts.txt")));
+
+		match result {
+			Ok(()) => println!("\x1b[32mSuccessfully extracted contacts.\x1b[0m"),
+			Err(error) => println!("\x1b[33m! Failed to extract contacts: {} !\x1b[0m", error),
+		};
 	}
 
 	if !args.no_messages {
-		messages.extract_to(args.output_path.join("messages"))?;
+		let result = Messages::fetch(&manifest)
+			.and_then(|messages| messages.extract_to(args.output_path.join("messages")));
+
+		match result {
+			Ok(()) => println!("\x1b[32mSuccessfully extracted messages.\x1b[0m"),
+			Err(error) => println!("\x1b[33m! Failed to extract messages: {} !\x1b[0m", error),
+		};
 	}
 
 	if !args.no_photos {
-		photos.extract_to(args.output_path.join("photos"))?;
-	}
+		let result = Photos::fetch(&manifest)
+			.and_then(|photos| photos.extract_to(args.output_path.join("photos")));
 
-	Ok(())
+		match result {
+			Ok(()) => println!("\x1b[32mSuccessfully extracted photos.\x1b[0m"),
+			Err(error) => println!("\x1b[33m! Failed to extract photos: {} !\x1b[0m", error),
+		};
+	}
 }
