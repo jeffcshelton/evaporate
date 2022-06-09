@@ -30,7 +30,6 @@ struct Args {
 pub enum Error {
 	Io(io::ErrorKind),
 	Sql(rusqlite::Error),
-	NoMessages,
 }
 
 impl fmt::Display for Error {
@@ -38,7 +37,6 @@ impl fmt::Display for Error {
 		match self {
 			Self::Io(io_error) => write!(f, "{}", io_error.to_string()),
 			Self::Sql(sql_error) => write!(f, "{}", sql_error.to_string()),
-			Self::NoMessages => write!(f, "no messages"),
 		}
 	}
 }
@@ -62,12 +60,13 @@ type Result<T> = std::result::Result<T, Error>;
 fn main() {
 	let args = Args::parse();
 	let manifest = Manifest::open(&args.backup_path)
-		.unwrap_or_else(|_| {
-			panic!();
+		.unwrap_or_else(|error| {
+			println!("\x1b[31m! Failed to open backup manifest: {} !\x1b[0m", error);
+			process::exit(1);
 		});
 
 	fs::create_dir(&args.output_path).unwrap_or_else(|error| {
-		println!("\x1b[31m! Could not create output directory: {} !\x1b[0m", error);
+		println!("\x1b[31m! Failed to create output directory: {} !\x1b[0m", error);
 		process::exit(1);
 	});
 
