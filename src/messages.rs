@@ -55,7 +55,7 @@ fn fetch(manifest: &Manifest) -> Result<HashMap<String, Vec<Message>>> {
 		INNER JOIN AddressBook.ABPerson AS Contact ON
 			Contact.RowID = PhoneNumber.record_id
 		INNER JOIN handle ON
-			Message.handle_id=handle.RowID
+			Message.handle_id = handle.RowID
 			AND handle.service IS NOT NULL
 		WHERE
 			Message.type = 0

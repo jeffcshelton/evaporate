@@ -22,7 +22,9 @@ fn fetch(manifest: &Manifest) -> Result<Vec<Photo>> {
 			ZFilename,
 			'Media/' || ZDirectory || '/' || ZFilename
 		FROM ZAsset
-		WHERE ZDirectory LIKE 'DCIM/%' AND ZFilename IS NOT NULL
+		WHERE
+			ZDirectory LIKE 'DCIM/%'
+			AND ZFilename IS NOT NULL
 	")?;
 
 	let mut rows = sql.query([])?;

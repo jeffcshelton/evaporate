@@ -1,4 +1,4 @@
-use rusqlite::{Connection as DbConnection, params};
+use rusqlite::Connection as DbConnection;
 
 use chrono::{
 	Date,
@@ -133,20 +133,23 @@ fn fetch(manifest: &Manifest) -> Result<Vec<Contact>> {
 			Person.Organization,
 			Person.Department,
 			Person.JobTitle,
-			CAST(Person.Birthday AS INT),
-			CAST(Anniversary.value AS INT),
+			CAST(Person.Birthday AS INTEGER),
+			CAST(Anniversary.value AS INTEGER),
 			Person.Note
 		FROM ABPerson AS Person
-		LEFT JOIN ABMultiValue AS Anniversary
-			ON Person.RowID=Anniversary.record_id AND Anniversary.property=?1
-		LEFT JOIN ABMultiValue AS PhoneNumber
-			ON Person.RowID=PhoneNumber.record_id AND PhoneNumber.property=?2
-		LEFT JOIN ABMultiValue AS Email
-			ON Person.RowID=Email.record_id AND Email.property=?3
+		LEFT JOIN ABMultiValue AS Anniversary ON
+			Person.RowID = Anniversary.record_id
+			AND Anniversary.property = 12
+		LEFT JOIN ABMultiValue AS PhoneNumber ON
+			Person.RowID = PhoneNumber.record_id
+			AND PhoneNumber.property = 3
+		LEFT JOIN ABMultiValue AS Email ON
+			Person.RowID = Email.record_id
+			AND Email.property = 4
 		WHERE Person.First IS NOT NULL
 	")?;
 
-	let mut rows = sql.query(params![12_i32, 3_i32, 4_i32])?;
+	let mut rows = sql.query([])?;
 	let mut contacts = Vec::new();
 
 	while let Some(row) = rows.next()? {
