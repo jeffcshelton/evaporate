@@ -9,10 +9,7 @@ use chrono::{
 };
 
 use crate::{
-	constants::{
-		DATETIME_FORMAT_STR,
-		TIMESTAMP_OFFSET,
-	},
+	constants::TIMESTAMP_OFFSET,
 	manifest::Manifest,
 	Result,
 };
@@ -103,7 +100,7 @@ pub fn extract_to<P: AsRef<Path>>(path: P, manifest: &Manifest) -> Result<()> {
 		for message in conversation {
 			if message.timestamp - last_timestamp > Duration::hours(2) {
 				file.write_all(
-					format!("\n      | {} |\n\n", message.timestamp.format(DATETIME_FORMAT_STR))
+					format!("\n      | {} |\n\n", message.timestamp.format("%A, %B %d, %Y @ %I:%M %p"))
 						.as_bytes()
 				)?;
 			}

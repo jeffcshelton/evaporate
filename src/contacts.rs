@@ -9,7 +9,7 @@ use chrono::{
 
 use crate::{
 	constants::{
-		DATE_FORMAT_STR,
+		NO_YEAR_OFFSET,
 		TIMESTAMP_OFFSET,
 	},
 	manifest::Manifest,
@@ -37,8 +37,8 @@ pub struct Contact {
 	pub department: Option<String>,
 	pub job_title: Option<String>,
 
-	pub birthday: Option<Date<Local>>,
-	pub anniversary: Option<Date<Local>>,
+	pub birthday: Option<(Date<Local>, bool)>,
+	pub anniversary: Option<(Date<Local>, bool)>,
 	pub note: Option<String>,
 }
 
@@ -96,14 +96,24 @@ impl ToString for Contact {
 			ret.push_str(&job_title);
 		}
 
-		if let Some(birthday) = self.birthday {
+		if let Some((birthday, include_year)) = self.birthday {
 			ret.push_str("\nBirthday: ");
-			ret.push_str(&birthday.format(DATE_FORMAT_STR).to_string());
+
+			if include_year {
+				ret.push_str(&birthday.format("%B %d, %Y").to_string());
+			} else {
+				ret.push_str(&birthday.format("%B %d").to_string());
+			}
 		}
 
-		if let Some(anniversary) = self.anniversary {
+		if let Some((anniversary, include_year)) = self.anniversary {
 			ret.push_str("\nAnniversary: ");
-			ret.push_str(&anniversary.format(DATE_FORMAT_STR).to_string());
+
+			if include_year {
+				ret.push_str(&anniversary.format("%B %d, %Y").to_string());
+			} else {
+				ret.push_str(&anniversary.format("%B %d").to_string());
+			}
 		}
 
 		if let Some(note) = &self.note {
@@ -165,13 +175,29 @@ fn fetch(manifest: &Manifest) -> Result<Vec<Contact>> {
 			});
 
 		let birthday = row.get::<_, Option<i64>>(11)?
-			.map(|timestamp| {
-				Local.from_utc_datetime(&NaiveDateTime::from_timestamp(timestamp + TIMESTAMP_OFFSET, 0)).date()
+			.map(|mut timestamp| {
+				timestamp += TIMESTAMP_OFFSET;
+
+				let mut include_year = true;
+				if timestamp < 0 {
+					timestamp += NO_YEAR_OFFSET;
+					include_year = false;
+				}
+
+				(Local.from_utc_datetime(&NaiveDateTime::from_timestamp(timestamp, 0)).date(), include_year)
 			});
 
 		let anniversary = row.get::<_, Option<i64>>(12)?
-			.map(|timestamp| {
-				Local.from_utc_datetime(&NaiveDateTime::from_timestamp(timestamp + TIMESTAMP_OFFSET, 0)).date()
+			.map(|mut timestamp| {
+				timestamp += TIMESTAMP_OFFSET;
+
+				let mut include_year = true;
+				if timestamp < 0 {
+					timestamp += NO_YEAR_OFFSET;
+					include_year = false;
+				}
+
+				(Local.from_utc_datetime(&NaiveDateTime::from_timestamp(timestamp, 0)).date(), include_year)
 			});
 
 		contacts.push(Contact {
