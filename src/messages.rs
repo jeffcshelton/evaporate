@@ -1,52 +1,120 @@
-use {
-	chrono::{
-		DateTime,
-		NaiveDateTime,
-		Local,
-		TimeZone,
-	},
-	rusqlite::{
-		Connection as DbConnection,
-		params,
-		Result,
-	},
+use rusqlite::{Connection as DbConnection, params};
+
+use chrono::{
+	Local,
+	NaiveDateTime,
+	TimeZone,
+	DateTime,
+	Duration,
 };
 
-const TIMESTAMP_OFFSET: i64 = 978307200; // UNIX timestamp of Jan 1, 2001 @ 00:00 (Apple's choice)
+use crate::{
+	constants::TIMESTAMP_OFFSET,
+	manifest::Manifest,
+	Result,
+};
 
-pub struct Messages {
-	pub(crate) connection: DbConnection
-}
+use std::{
+	collections::HashMap,
+	fs::{self, File},
+	io::Write,
+	path::Path,
+};
 
-#[derive(Clone)]
 pub struct Message {
-	pub content: Option<String>,
-	pub is_from_me: bool,
-	pub timestamp: DateTime<Local>,
+	content: Option<String>,
+	is_from_me: bool,
+	timestamp: DateTime<Local>
 }
 
-impl Messages {
-	pub fn all(&self, phone_number: &str) -> Result<Vec<Message>> {
-		let mut handle_sql = self.connection.prepare("SELECT RowID FROM handle WHERE id=?1 AND service=?2")?;
-		let mut handle_rows = handle_sql.query(params![phone_number, "iMessage"])?;
-		let handle_id: i32 = handle_rows.next()?.unwrap().get(0)?; // TODO: Remove .unwrap()
-		
-		let mut messages_sql = self.connection.prepare("SELECT text, is_from_me, date FROM message WHERE handle_id=?1 AND type=?2")?;
-		let mut message_rows = messages_sql.query(params![handle_id, 0])?;
+fn fetch(manifest: &Manifest) -> Result<HashMap<String, Vec<Message>>> {
+	let messages_path = manifest.get_path("Library/SMS/sms.db")?;
+	let contacts_path = manifest.get_path("Library/AddressBook/AddressBook.sqlitedb")?;
 
-		let mut messages = Vec::new();
+	let connection = DbConnection::open(messages_path)?;
+	connection.execute("ATTACH DATABASE ?1 AS AddressBook", params![contacts_path.to_string_lossy()])?;
 
-		while let Some(row) = message_rows.next()? {
-			let raw_timestamp = row.get::<_, i64>(2)? / 1_000_000_000;
-			let datetime = NaiveDateTime::from_timestamp(raw_timestamp + TIMESTAMP_OFFSET, 0);
+	let mut sql = connection.prepare("
+		SELECT
+			Message.text,
+			Message.is_from_me,
+			Message.date / 1000000000,
+			Contact.First || COALESCE(' ' || Contact.Last, '')
+		FROM Message
+		INNER JOIN AddressBook.ABMultiValue AS PhoneNumber ON
+			PhoneNumber.property = 3
+			AND handle.id = REPLACE(REPLACE(REPLACE(REPLACE(
+				CASE WHEN PhoneNumber.value NOT LIKE '+%'
+					THEN '+1' || PhoneNumber.value
+					ELSE PhoneNumber.value
+				END,
+			'(', ''), ')', ''), ' ', ''), '-', '')
+		INNER JOIN AddressBook.ABPerson AS Contact ON
+			Contact.RowID = PhoneNumber.record_id
+		INNER JOIN handle ON
+			Message.handle_id = handle.RowID
+			AND handle.service IS NOT NULL
+		WHERE
+			Message.type = 0
+			AND Contact.First IS NOT NULL
+		ORDER BY Message.date ASC
+	")?;
 
-			messages.push(Message {
-				content: row.get(0)?,
-				is_from_me: row.get::<_, i32>(1)? == 1,
-				timestamp: Local.from_utc_datetime(&datetime),
-			});
+	let mut messages = HashMap::<String, Vec<Message>>::new();
+	let mut rows = sql.query([])?;
+
+	while let Some(row) = rows.next()? {
+		let name: String = row.get(3)?;
+		let timestamp = Local.from_utc_datetime(
+			&NaiveDateTime::from_timestamp(row.get::<_, i64>(2)? + TIMESTAMP_OFFSET, 0)
+		);
+
+		let message = Message {
+			content: row.get(0)?,
+			is_from_me: row.get(1)?,
+			timestamp: timestamp,
+		};
+
+		if let Some(conversation) = messages.get_mut(&name) {
+			conversation.push(message);
+		} else {
+			messages.insert(name, vec![message]);
+		}
+	}
+
+	Ok(messages)
+}
+
+pub fn extract_to<P: AsRef<Path>>(path: P, manifest: &Manifest) -> Result<()> {
+	let path = path.as_ref();
+	fs::create_dir(path)?;
+
+	for (name, conversation) in fetch(manifest)? {
+		if conversation.is_empty() {
+			continue;
 		}
 
-		Ok(messages)
+		let mut file = File::create(path.join(&name).with_extension("txt"))?;
+		let mut last_timestamp = Local.timestamp(0, 0);
+
+		for message in conversation {
+			if message.timestamp - last_timestamp > Duration::hours(2) {
+				file.write_all(
+					format!("\n      | {} |\n\n", message.timestamp.format("%A, %B %d, %Y @ %I:%M %p"))
+						.as_bytes()
+				)?;
+			}
+
+			file.write_all(
+				format!("[{}]: {}\n",
+					if message.is_from_me { "me" } else { &name },
+					if let Some(content) = &message.content { content } else { "<unknown>" },
+				).as_bytes()
+			)?;
+
+			last_timestamp = message.timestamp;
+		}
 	}
+
+	Ok(())
 }

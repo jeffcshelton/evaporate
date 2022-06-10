@@ -1,33 +1,33 @@
-mod address_book;
+mod constants;
+mod contacts;
 mod manifest;
 mod messages;
+mod photos;
 
-use {
-	chrono::Duration,
-	clap::Parser,
-	manifest::Manifest,
-	std::{
-		path::PathBuf,
-		fmt,
-		fs::File,
-		io::{self, Write},
-	},
-};
+use clap::Parser;
+use manifest::Manifest;
+use std::{path::PathBuf, fmt, fs, io, process};
 
 #[derive(Parser)]
 struct Args {
 	#[clap(parse(from_os_str))]
 	backup_path: PathBuf,
 
-	#[clap(short = 'o', long = "output")]
-	output_path: Option<PathBuf>,
+	#[clap(parse(from_os_str), short = 'o', long = "output")]
+	output_path: PathBuf,
 
-	#[clap(long)]
-	name: String,
+	#[clap(long = "no-contacts")]
+	no_contacts: bool,
+
+	#[clap(long = "no-messages")]
+	no_messages: bool,
+
+	#[clap(long = "no-photos")]
+	no_photos: bool,
 }
 
 #[derive(Debug)]
-enum Error {
+pub enum Error {
 	Io(io::ErrorKind),
 	Sql(rusqlite::Error),
 }
@@ -57,42 +57,37 @@ impl From<rusqlite::Error> for Error {
 
 type Result<T> = std::result::Result<T, Error>;
 
-fn main() -> Result<()> {
+fn main() {
 	let args = Args::parse();
+	let manifest = Manifest::open(&args.backup_path)
+		.unwrap_or_else(|error| {
+			println!("\x1b[31m! Failed to open backup manifest: {} !\x1b[0m", error);
+			process::exit(1);
+		});
 
-	let manifest = Manifest::open(&args.backup_path)?;
-	let address_book = manifest.address_book()?;
-	let messages_db = manifest.messages()?;
+	fs::create_dir(&args.output_path).unwrap_or_else(|error| {
+		println!("\x1b[31m! Failed to create output directory: {} !\x1b[0m", error);
+		process::exit(1);
+	});
 
-	let phone_number = address_book.get_phone_number(&args.name)?;
-	let messages = messages_db.all(&phone_number)?;
-
-	if let Some(output_path) = args.output_path {
-		let mut file = File::create(output_path)?;
-
-		for m in 0..messages.len() {
-			let msg = &messages[m];
-			let last_msg = messages.get(m - 1);
-
-			if (last_msg.is_some() && msg.timestamp - last_msg.unwrap().timestamp > Duration::hours(2)) || (last_msg.is_none()) {
-				file.write_all(
-					format!("\n      | {} |\n\n", msg.timestamp.format("%A, %B %d, %Y @ %I:%M %p"))
-						.as_bytes()
-				)?;
-			}
-
-			file.write_all(
-				format!("[{}]: {}\n",
-					if msg.is_from_me { "me" } else { &args.name },
-					msg.content.clone().unwrap_or("<unknown>".to_owned()),
-				).as_bytes(),
-			)?;
-		}
-	} else {
-		for message in messages {
-			println!("[{}]: {}", if message.is_from_me { "me" } else { &args.name }, message.content.unwrap_or("<image>".to_owned()));
-		}
+	if !args.no_contacts {
+		match contacts::extract_to(args.output_path.join("contacts.txt"), &manifest) {
+			Ok(()) => println!("\x1b[32mSuccessfully extracted contacts.\x1b[0m"),
+			Err(error) => println!("\x1b[33m! Failed to extract contacts: {} !\x1b[0m", error),
+		};
 	}
-	
-	Ok(())
+
+	if !args.no_messages {
+		match messages::extract_to(args.output_path.join("messages"), &manifest) {
+			Ok(()) => println!("\x1b[32mSuccessfully extracted messages.\x1b[0m"),
+			Err(error) => println!("\x1b[33m! Failed to extract messages: {} !\x1b[0m", error),
+		};
+	}
+
+	if !args.no_photos {
+		match photos::extract_to(args.output_path.join("photos"), &manifest) {
+			Ok(()) => println!("\x1b[32mSuccessfully extracted photos.\x1b[0m"),
+			Err(error) => println!("\x1b[33m! Failed to extract photos: {} !\x1b[0m", error),
+		};
+	}
 }
