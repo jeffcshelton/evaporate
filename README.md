@@ -18,11 +18,30 @@ $ cargo uninstall evaporate
 
 ## Usage
 
+First, your backup _must_ be **unencrypted**. In the future, `evaporate` may support encrypted backups if the password is known, but not currently. Then, find the file path to your backup and run this command in your terminal:
+
 ```
-$ evaporate <path-to-backup> --name <name-of-contact>
+$ evaporate <path-to-backup> -o <path-to-extraction>
 ```
 
-***NOTE:*** The name provided must be exactly the first and last name stored in the phone's contacts, even if those fields contain extra characters like emojis, numbers, or symbols.
+The backup will then be extracted to the specified output path in a human-readable format. Currently, it extracts messages, photos, and contacts from the backup into the following format:
+
+```
+<output-path>
+  | contacts.txt
+  | messages
+      | <contact-1>.txt
+      | <contact-2>.txt
+      .
+      .
+  | photos
+      | IMG_0001.JPG
+      | IMG_0002.JPG
+      .
+      .
+```
+
+If you want to see more features added, please consider contributing! If there is enough demand, I will make a contribution guide document. Otherwise, please still create issues and pull requests to help out with the project.
 
 ## Acknowledements
 
