@@ -1,7 +1,7 @@
 use rusqlite::Connection as DbConnection;
 
 use chrono::{
-	Date,
+	DateTime,
 	Local,
 	NaiveDateTime,
 	TimeZone,
@@ -37,8 +37,8 @@ pub struct Contact {
 	pub department: Option<String>,
 	pub job_title: Option<String>,
 
-	pub birthday: Option<(Date<Local>, bool)>,
-	pub anniversary: Option<(Date<Local>, bool)>,
+	pub birthday: Option<(DateTime<Local>, bool)>,
+	pub anniversary: Option<(DateTime<Local>, bool)>,
 	pub note: Option<String>,
 }
 
@@ -174,9 +174,8 @@ fn fetch(manifest: &Manifest) -> Result<Vec<Contact>> {
 				num
 			});
 
-		let birthday = row.get::<_, Option<i64>>(11)?
-			.map(|mut timestamp| {
-				timestamp += TIMESTAMP_OFFSET;
+		let convert_timestamp = |mut timestamp| {
+			timestamp += TIMESTAMP_OFFSET;
 
 				let mut include_year = true;
 				if timestamp < 0 {
@@ -184,21 +183,20 @@ fn fetch(manifest: &Manifest) -> Result<Vec<Contact>> {
 					include_year = false;
 				}
 
-				(Local.from_utc_datetime(&NaiveDateTime::from_timestamp(timestamp, 0)).date(), include_year)
-			});
+				(
+					Local.from_utc_datetime(
+						&NaiveDateTime::from_timestamp_opt(timestamp, 0)
+							.expect("! invalid timestamp found in database !")
+					),
+					include_year
+				)
+		};
+
+		let birthday = row.get::<_, Option<i64>>(11)?
+			.map(convert_timestamp);
 
 		let anniversary = row.get::<_, Option<i64>>(12)?
-			.map(|mut timestamp| {
-				timestamp += TIMESTAMP_OFFSET;
-
-				let mut include_year = true;
-				if timestamp < 0 {
-					timestamp += NO_YEAR_OFFSET;
-					include_year = false;
-				}
-
-				(Local.from_utc_datetime(&NaiveDateTime::from_timestamp(timestamp, 0)).date(), include_year)
-			});
+			.map(convert_timestamp);
 
 		contacts.push(Contact {
 			first_name: row.get(0)?,
@@ -207,13 +205,13 @@ fn fetch(manifest: &Manifest) -> Result<Vec<Contact>> {
 			nickname: row.get(3)?,
 			prefix: row.get(4)?,
 			suffix: row.get(5)?,
-			phone_number: phone_number,
+			phone_number,
 			email: row.get(7)?,
 			organization: row.get(8)?,
 			department: row.get(9)?,
 			job_title: row.get(10)?,
-			birthday: birthday,
-			anniversary: anniversary,
+			birthday,
+			anniversary,
 			note: row.get(13)?,
 		});
 	}

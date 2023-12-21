@@ -66,7 +66,8 @@ fn fetch(manifest: &Manifest) -> Result<HashMap<String, Vec<Message>>> {
 	while let Some(row) = rows.next()? {
 		let name: String = row.get(3)?;
 		let timestamp = Local.from_utc_datetime(
-			&NaiveDateTime::from_timestamp(row.get::<_, i64>(2)? + TIMESTAMP_OFFSET, 0)
+			&NaiveDateTime::from_timestamp_opt(row.get::<_, i64>(2)? + TIMESTAMP_OFFSET, 0)
+				.expect("! invalid timestamp found in database !")
 		);
 
 		let message = Message {
@@ -95,7 +96,7 @@ pub fn extract_to<P: AsRef<Path>>(path: P, manifest: &Manifest) -> Result<()> {
 		}
 
 		let mut file = File::create(path.join(&name).with_extension("txt"))?;
-		let mut last_timestamp = Local.timestamp(0, 0);
+		let mut last_timestamp = Local.timestamp_opt(0, 0).unwrap();
 
 		for message in conversation {
 			if message.timestamp - last_timestamp > Duration::hours(2) {
