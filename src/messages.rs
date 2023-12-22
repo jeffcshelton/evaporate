@@ -95,23 +95,45 @@ pub fn extract_to<P: AsRef<Path>>(path: P, manifest: &Manifest) -> Result<()> {
 			continue;
 		}
 
-		let mut file = File::create(path.join(&name).with_extension("txt"))?;
+		// TODO: sanitize file name
+		let export_path = path.join(&name).with_extension("txt");
+
+		dbg!(&name);
+		dbg!(&export_path);
+		dbg!(conversation.len());
+		println!();
+
+		let mut file = File::create(export_path)?;
 		let mut last_timestamp = Local.timestamp_opt(0, 0).unwrap();
 
 		for message in conversation {
+			// if there was more than two hours between texts,
+			// write a new timestamp preceding the message content
 			if message.timestamp - last_timestamp > Duration::hours(2) {
-				file.write_all(
-					format!("\n      | {} |\n\n", message.timestamp.format("%A, %B %d, %Y @ %I:%M %p"))
-						.as_bytes()
-				)?;
+				let timestamp = message.timestamp.format("%A, %B %d, %Y @ %I:%M %p");
+
+				write!(&mut file, "\n      | {timestamp} |\n\n")?;
+
+				// file.write_all(
+				// 	format!("\n      | {} |\n\n", message.timestamp.format("%A, %B %d, %Y @ %I:%M %p"))
+				// 		.as_bytes()
+				// )?;
 			}
 
-			file.write_all(
-				format!("[{}]: {}\n",
-					if message.is_from_me { "me" } else { &name },
-					if let Some(content) = &message.content { content } else { "<unknown>" },
-				).as_bytes()
-			)?;
+			// write message to text file
+			let sender = if message.is_from_me { "me" } else { &name };
+			let content = message.content
+				.as_deref()
+				.unwrap_or("<unknown>");
+
+			writeln!(&mut file, "[{sender}]: {content}")?;
+
+			// file.write_all(
+			// 	format!("[{}]: {}\n",
+			// 		if message.is_from_me { "me" } else { &name },
+			// 		if let Some(content) = &message.content { content } else { "<unknown>" },
+			// 	).as_bytes()
+			// )?;
 
 			last_timestamp = message.timestamp;
 		}
