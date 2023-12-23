@@ -95,13 +95,23 @@ pub fn extract_to<P: AsRef<Path>>(path: P, manifest: &Manifest) -> Result<()> {
 			continue;
 		}
 
-		// TODO: sanitize file name
-		let export_path = path.join(&name).with_extension("txt");
+		let mut sanitized_name = name
+			.trim_matches(['.', ' '].as_slice())
+			.replace(['<', '>', ':', '"', '/', '\\', '|', '?', '*'], "-")
+			.replace(|c: char| c.is_ascii_control(), "");
 
-		dbg!(&name);
-		dbg!(&export_path);
-		dbg!(conversation.len());
-		println!();
+		if sanitized_name.is_empty() {
+			sanitized_name = "Unnamed".to_owned();
+		}
+
+		let mut export_path = path.join(&sanitized_name).with_extension("txt");
+		let mut repeats = 0;
+
+		// enumerate the contacts if there are multiple with the same name
+		while export_path.exists() {
+			repeats += 1;
+			export_path.set_file_name(sanitized_name.clone() + " " + &repeats.to_string());
+		}
 
 		let mut file = File::create(export_path)?;
 		let mut last_timestamp = Local.timestamp_opt(0, 0).unwrap();
@@ -113,11 +123,6 @@ pub fn extract_to<P: AsRef<Path>>(path: P, manifest: &Manifest) -> Result<()> {
 				let timestamp = message.timestamp.format("%A, %B %d, %Y @ %I:%M %p");
 
 				write!(&mut file, "\n      | {timestamp} |\n\n")?;
-
-				// file.write_all(
-				// 	format!("\n      | {} |\n\n", message.timestamp.format("%A, %B %d, %Y @ %I:%M %p"))
-				// 		.as_bytes()
-				// )?;
 			}
 
 			// write message to text file
@@ -127,13 +132,6 @@ pub fn extract_to<P: AsRef<Path>>(path: P, manifest: &Manifest) -> Result<()> {
 				.unwrap_or("<unknown>");
 
 			writeln!(&mut file, "[{sender}]: {content}")?;
-
-			// file.write_all(
-			// 	format!("[{}]: {}\n",
-			// 		if message.is_from_me { "me" } else { &name },
-			// 		if let Some(content) = &message.content { content } else { "<unknown>" },
-			// 	).as_bytes()
-			// )?;
 
 			last_timestamp = message.timestamp;
 		}
