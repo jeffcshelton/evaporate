@@ -66,7 +66,8 @@ fn fetch(manifest: &Manifest) -> Result<HashMap<String, Vec<Message>>> {
 	while let Some(row) = rows.next()? {
 		let name: String = row.get(3)?;
 		let timestamp = Local.from_utc_datetime(
-			&NaiveDateTime::from_timestamp(row.get::<_, i64>(2)? + TIMESTAMP_OFFSET, 0)
+			&NaiveDateTime::from_timestamp_opt(row.get::<_, i64>(2)? + TIMESTAMP_OFFSET, 0)
+				.expect("! invalid timestamp found in database !")
 		);
 
 		let message = Message {
@@ -94,23 +95,43 @@ pub fn extract_to<P: AsRef<Path>>(path: P, manifest: &Manifest) -> Result<()> {
 			continue;
 		}
 
-		let mut file = File::create(path.join(&name).with_extension("txt"))?;
-		let mut last_timestamp = Local.timestamp(0, 0);
+		let mut sanitized_name = name
+			.trim_matches(['.', ' '].as_slice())
+			.replace(['<', '>', ':', '"', '/', '\\', '|', '?', '*'], "-")
+			.replace(|c: char| c.is_ascii_control(), "");
+
+		if sanitized_name.is_empty() {
+			sanitized_name = "Unnamed".to_owned();
+		}
+
+		let mut export_path = path.join(&sanitized_name).with_extension("txt");
+		let mut repeats = 0;
+
+		// enumerate the contacts if there are multiple with the same name
+		while export_path.exists() {
+			repeats += 1;
+			export_path.set_file_name(sanitized_name.clone() + " " + &repeats.to_string());
+		}
+
+		let mut file = File::create(export_path)?;
+		let mut last_timestamp = Local.timestamp_opt(0, 0).unwrap();
 
 		for message in conversation {
+			// if there was more than two hours between texts,
+			// write a new timestamp preceding the message content
 			if message.timestamp - last_timestamp > Duration::hours(2) {
-				file.write_all(
-					format!("\n      | {} |\n\n", message.timestamp.format("%A, %B %d, %Y @ %I:%M %p"))
-						.as_bytes()
-				)?;
+				let timestamp = message.timestamp.format("%A, %B %d, %Y @ %I:%M %p");
+
+				write!(&mut file, "\n      | {timestamp} |\n\n")?;
 			}
 
-			file.write_all(
-				format!("[{}]: {}\n",
-					if message.is_from_me { "me" } else { &name },
-					if let Some(content) = &message.content { content } else { "<unknown>" },
-				).as_bytes()
-			)?;
+			// write message to text file
+			let sender = if message.is_from_me { "me" } else { &name };
+			let content = message.content
+				.as_deref()
+				.unwrap_or("<unknown>");
+
+			writeln!(&mut file, "[{sender}]: {content}")?;
 
 			last_timestamp = message.timestamp;
 		}
