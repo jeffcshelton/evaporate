@@ -1,16 +1,16 @@
 # evaporate
 
-`evaporate` is a command line tool written in Rust that makes the process of extracting messages (iMessage and SMS) from an iOS (iPhone/iPad) backup. Don't be fooled by the multitude of tools online which claim to be free; most require a paid license or subscription after you've already downloaded it and viewed your messages. `evaporate` is *actually* free and open-source, so download and use as much as you want at no cost!
+Evaporate is a command line tool written in Rust that makes the process of extracting messages (iMessage and SMS) from an iOS (iPhone/iPad) backup. Don't be fooled by the multitude of tools online which claim to be free; most require a paid license or subscription after you've already downloaded it and viewed your messages. Most tools especially require payment to extract a backup into another format. Evaporate is *actually* free and open-source, so download and use it as much as you want at no cost!
 
 ## Install
 
-`evaporate` is not yet listed on major package repositories and so cannot yet be installed using `brew` or `apt`. As such, it must be compiled from source. This can be done by [installing Rust](https://www.rust-lang.org/tools/install) and then executing:
+Evaporate is listed on [crates.io](https://crates.io), so it can be installed from there. First, [install Rust](https://www.rust-lang.org/tools/install) on your machine and then execute:
 
 ```
-$ cargo install --git https://github.com/jeffreycshelton/evaporate
+$ cargo install evaporate
 ```
 
-Assuming ~/.cargo (or the equivalent on Windows) is on PATH, you should be able to execute `evaporate`. If you ever want to uninstall `evaporate`, just execute this command:
+Assuming ~/.cargo (or the equivalent on Windows) is on PATH (it likely is), you should be able to execute the `evaporate` command. If you ever want to uninstall, just execute this command:
 
 ```
 $ cargo uninstall evaporate
@@ -18,7 +18,7 @@ $ cargo uninstall evaporate
 
 ## Usage
 
-First, your backup _must_ be **unencrypted**. In the future, `evaporate` may support encrypted backups if the password is known, but not currently. Then, find the file path to your backup and run this command in your terminal:
+First, your backup _must_ be **unencrypted**. In the future, the tool may support encrypted backups if the password is known, but not currently. Then, find the file path to your backup and run this command in your terminal:
 
 ```
 $ evaporate <path-to-backup> -o <path-to-extraction>
@@ -45,8 +45,8 @@ If you want to see more features added, please consider contributing! If there i
 
 ## Acknowledements
 
-Huge thanks to Rich Infante for writing his guide [Reverse Engineering the iOS Backup](https://www.richinfante.com/2017/3/16/reverse-engineering-the-ios-backup). No code is directly copied from his guide, but many of the techniques shown in it are used in `evaporate`. The guide helped reduce the time required to write this tool significantly, and I greatly appreciate his effort in publishing it.
+Huge thanks to Rich Infante for writing his guide [Reverse Engineering the iOS Backup](https://www.richinfante.com/2017/3/16/reverse-engineering-the-ios-backup). No code is directly copied from his guide, but many of the techniques shown in it are used to decompose iOS backups. The guide helped reduce the time required to write this tool significantly.
 
 ## License
 
-`evaporate` is licensed under the [MIT License](LICENSE).
+Evaporate is licensed under the [MIT License](LICENSE).
