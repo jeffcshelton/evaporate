@@ -3,7 +3,9 @@ name = "evaporate"
 description = "A tool to extract messages and photos from iOS backups"
 version = "0.2.1"
 edition = "2021"
+repository = "https://github.com/jeffcshelton/evaporate"
 license = "MIT"
+keywords = ["ios", "backup"]
 
 [dependencies]
 clap = { version = "3.1", features = ["derive"] }
